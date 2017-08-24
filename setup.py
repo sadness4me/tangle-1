@@ -28,7 +28,7 @@ test_requirements = [
 setup(
     name='tangle',
     version='0.1.0',
-    description="Python framework with DI, AOP support",
+    description="Python framework with DI, AOP support, inspired by Spring Framework",
     long_description=readme + '\n\n' + history,
     author="Fifman Feng",
     author_email='fifman@163.com',
