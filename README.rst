@@ -20,6 +20,12 @@ tangle
 .. image:: https://coveralls.io/repos/github/fifman/tangle/badge.svg?branch=master
         :target: https://coveralls.io/github/fifman/tangle?branch=master
 
+.. image:: https://sonarcloud.io/api/badges/measure?key=tangle&metric=vulnerabilities
+    :target: https://sonarcloud.io/component_measures/metric/vulnerabilities/list?id=tangle
+
+.. image:: https://sonarcloud.io/api/badges/measure?key=tangle&metric=bugs
+    :target: https://sonarcloud.io/component_measures/metric/bugs/list?id=tangle
+
 
 Python framework with DI, AOP support
 
