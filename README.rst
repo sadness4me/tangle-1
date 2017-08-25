@@ -14,8 +14,11 @@ tangle
         :alt: Documentation Status
 
 .. image:: https://pyup.io/repos/github/fifman/tangle/shield.svg
-     :target: https://pyup.io/repos/github/fifman/tangle/
-     :alt: Updates
+        :target: https://pyup.io/repos/github/fifman/tangle/
+        :alt: Updates
+
+.. image:: https://coveralls.io/repos/github/fifman/tangle/badge.svg?branch=master
+        :target: https://coveralls.io/github/fifman/tangle?branch=master
 
 
 Python framework with DI, AOP support
