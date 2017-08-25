@@ -26,21 +26,21 @@ class WireUtils(object):
         self.application_context = application_context
 
     def wire(self, expectation):
-        for bean_id, bean_def in six.iteritems(self.application_context.get_all_bean_definitions()):
-            if expectation(bean_def):
-                return self.application_context.get(bean_def.bean_id)
+        for bean_id, bean_definition in six.iteritems(self.application_context.get_all_bean_definitions()):
+            if expectation(bean_definition):
+                return self.application_context.get(bean_definition.bean_id)
         return None
 
     def wire_class(self, klass):
-        return self.wire(lambda bean_def: issubclass(bean_def.klass, klass))
+        return self.wire(lambda bean_definition: issubclass(bean_definition.klass, klass))
 
     def autowire(self, bean):
-        fields = inspect.getmembers(type(bean), lambda fn: isinstance(fn, m_bean._Field))
+        fields = inspect.getmembers(type(bean), lambda fn: isinstance(fn, m_bean.Field))
         for name, field in fields:
             if field.autowire:
                 wired_bean = self.wire_class(field.klass)
                 if wired_bean:
-                    field.fset(bean, wired_bean)
+                    field.set(bean, wired_bean)
 
 
 class ApplicationContext(object):
