@@ -1,0 +1,6 @@
+projectKey=tangle
+serverUrl=http://localhost:9000
+serverVersion=6.5.0.27846
+dashboardUrl=http://localhost:9000/dashboard/index/tangle
+ceTaskId=AV4aiJC4Nz9aMD8R_vFw
+ceTaskUrl=http://localhost:9000/api/ce/task?id=AV4aiJC4Nz9aMD8R_vFw

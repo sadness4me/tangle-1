@@ -1,6 +1,9 @@
 # Config file for automatic testing at travis-ci.org
 # This file will be regenerated if you run travis_pypi_setup.py
 
+dist: trusty
+sudo: required
+
 language: python
 python:
   - 3.5
@@ -14,7 +17,9 @@ install:
     - pip install coveralls
 
 # command to run tests, e.g. python setup.py test
-script: tox
+script:
+    - tox
+    - sonar-scanner
 
 # After you create the Github repo and add it to Travis, run the
 # travis_pypi_setup.py script to finish PyPI deployment setup
@@ -28,3 +33,9 @@ deploy:
         tags: true
         repo: fifman/tangle
         python: 2.7
+
+addons:
+    sonarcloud:
+        organization: "fifman-github" # the key of the org you chose at step #3
+        token:
+            secure: "ofxsQGUzq9xmYMqyPvSEmoSM3KnY+oC4gFWKcQH/ejO6FoLqLA7H74ujQgz1RFgPoLv08T9kA+Vgtrwa7whtBeuowcP3ymL7ctA+ztHh3Xjg6abPiZ7VAZXtEhohMjge8AsWflh2Jmu0hggPnmhBWXoN7b0YSpc927RT/KgzDV4LNj6L/UQOoVTJ912ado9QbZ6dtWVh8NpmuYPPq06oZ0tJC8qbjxdCHp25iQRR8YIg0Xv3fydDKWwy98LJE+ruHPcfDSp6Xpv/KemLTvR+IXK45Ku2fi9tMuCjyadNsrM1UhOQaJVFzcp0Hh7rgugGaVXTs1mq2El+KWT77vSw3Sk0SCdw/CNLqDuKCmgD8YGZfMbk0B0EAflgdfm7W+IBEiJZ81f6z2Fd/xqhTIfyp2iMO9oBJG5nSW9w3HizlhZdnIbcR6z0sgIu5Jv01yY5ygZXKqJl0YPkFXTUTwWC1eSeSQD+Fdg+hL+G14XrbYS02s381WuxDGbpSaa063iUKBSejC6NIcih+y9BBwMhyG3bOxyP+sz1gRQ8k7NUCwv9km8SgK0QTGiPHUn+dA2pQKwH0dKdoCtpLDX9nxXMRGK+tQxzCCj/++VKTDYSiCmhgRFIoJOoHCmOd21otKBdTecUhJUyu4Rdco9j1iHryuAF2aFP66CrgnfvUZGdGLA="
