@@ -27,23 +27,48 @@ tangle
     :target: https://sonarcloud.io/component_measures/metric/bugs/list?id=tangle
 
 
-Python framework with DI, AOP support
+A python IoC and AOP framework.
 
 
 * Free software: MIT license
 * Documentation: https://tangle.readthedocs.io.
 
 
+.. contents::
+
+.. section-numbering::
+
 Features
 --------
 
-* TODO
+* Decorator (annotation) based configuration support for AOP (aspect oriented programming) and bean (instance of python class) memebers (`Field`).
+* Programmatic configuration support for bean construction and application context (i.e. IoC container) configuration.
+* Supports application context inheritance, that is, a parent context can be specified to an application context. Note: multi-parents are not supported.
+* Supports autowire
+* supports the `scope` feature, which determines the lifecycle of the beans managed by the context, including the `Singleton` and `Prototype` scope.
+* Context and bean lifecycle hooks support
+
+Installation
+------------------
+
+See Installation_.
+
+.. _Installation: docs/Installation.rst
+
+Usage
+---------
+
+See Usage_.
+
+.. _Usage: docs/Usage.rst
 
 Credits
 ---------
 
 This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
 
+Inspired by `Spring Framework`_.
+
 .. _Cookiecutter: https://github.com/audreyr/cookiecutter
 .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
-
+.. _Spring Framework: https://github.com/spring-projects/spring-framework
