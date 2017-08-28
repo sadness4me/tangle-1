@@ -41,11 +41,11 @@ A python IoC and AOP framework.
 Features
 --------
 
-* Decorator (annotation) based configuration support for AOP (aspect oriented programming) and bean (instance of python class) memebers (`Field`).
+* Decorator (annotation) based configuration support for AOP (aspect oriented programming) and bean (instance of python class) memebers (``Field``).
 * Programmatic configuration support for bean construction and application context (i.e. IoC container) configuration.
 * Supports application context inheritance, that is, a parent context can be specified to an application context. Note: multi-parents are not supported.
 * Supports autowire
-* supports the `scope` feature, which determines the lifecycle of the beans managed by the context, including the `Singleton` and `Prototype` scope.
+* supports the ``scope`` feature, which determines the lifecycle of the beans managed by the context, including the ``Singleton`` and ``Prototype`` scope.
 * Context and bean lifecycle hooks support
 
 Installation
@@ -53,14 +53,14 @@ Installation
 
 See Installation_.
 
-.. _Installation: docs/Installation.rst
+.. _Installation: docs/installation.rst
 
 Usage
 ---------
 
 See Usage_.
 
-.. _Usage: docs/Usage.rst
+.. _Usage: docs/usage.rst
 
 Credits
 ---------
