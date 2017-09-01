@@ -4,21 +4,31 @@ import collections
 import inspect
 import types
 
+from tangle.m_annotation import Annotation
 
-class Bean(object):
+
+class Bean(Annotation):
     Singleton = 1
     Prototype = 2
 
     def __init__(self, scope=Singleton, bean_id=None, is_config=False):
-        self.scope = scope
+        self.scope = None
         self.bean_id = bean_id
         self.klass = None
         self.container_class = None
         self.bean_container = None
         self.is_config = is_config
+        self.creator = None
+        self.wrapped_creator = None
+        super(Bean, self).__init__(scope, bean_id, is_config)
 
-    def __call__(self, fn):
-        self.creator = fn
+    def init_instance_annotate(self, scope, bean_id, is_config):
+        pass
+
+    def init_class_annotate(self):
+        self.scope = Bean.Singleton
+
+    def after_set_target(self, fn):
         if not self.bean_id:
             self.bean_id = fn.__name__
 
@@ -36,15 +46,12 @@ class Bean(object):
             return bean
 
         self.wrapped_creator = create
-        return self
 
-    def __get__(self, instance, owner):
-        self.container_class = owner
-        if owner is None:
-            self.container_class = type(instance)
-        if instance is None:
-            return self
+    def get_instance_member(self, target, instance):
         return types.MethodType(self.wrapped_creator, instance)
+
+    def aware_owner_class(self, owner):
+        self.container_class = owner
 
 
 class BeanContainer(object):
@@ -55,14 +62,6 @@ class BeanContainer(object):
         self.prototype_beans_referenced = []
 
     def register_config_source(self, config_source):
-        """
-        assert inspect.isclass(config_source), "config_source argument should be class"
-        config_source_id = config_source.__name__
-        assert config_source not in self.config_source_dict, "the config source class is already registered!"
-        config_bean_definition = Bean(bean_id=config_source_id, is_config=True)
-        config_bean_definition.klass = config_source
-        config_bean = config_source()
-        """
         config_class = type(config_source)
         config_source_id = config_class.__name__
         assert config_class not in self.config_source_dict, "the config source class is already registered!"

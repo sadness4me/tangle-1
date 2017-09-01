@@ -1,42 +1,55 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 import six
+from tangle.m_annotation import Annotation, get_annotations
 
 
-class Field(object):
+def get_fields(obj):
+    return list(filter(lambda entry: isinstance(entry, Field), get_annotations(obj)))
 
-    def __init__(self, klass, autowire=False):
-        super(Field, self).__init__()
+
+class Field(Annotation):
+    def __init__(self, klass=None, autowire=False):
+        self.klass = None
+        self.autowire = False
+        self.cb_set = None
+        self.name = None
+        super(Field, self).__init__(klass, autowire)
+
+    def init_class_annotate(self):
+        pass
+
+    def init_instance_annotate(self, klass, autowire):
         self.klass = klass
         self.autowire = autowire
-        self.cb_set = None
 
-    def __get__(self, obj, objtype=None):
-        if obj is None:
-            return self
-        return self.get(obj)
+    def get_instance_member(self, target, instance):
+        return self.get(instance)
 
     def __set__(self, obj, value):
         self.set(obj, value)
         if self.cb_set:
             self.cb_set(obj, value)
 
-    def __call__(self, fn):
-        self.fn = fn
-        self.name = fn.__name__
-        return self
+    def after_set_target(self, target):
+        self.name = target.__name__
 
     def get(self, inst):
         try:
-            self.fn(inst)
+            self.target(inst)   # getter callback
             return getattr(inst, "_" + self.name)
         except AttributeError:
             six.raise_from(AttributeError("property (%s) not set yet!" % self.name), None)
 
     def set(self, inst, value):
-        if not isinstance(value, self.klass):
+        if self.klass and not isinstance(value, self.klass):
             raise TypeError("set property type (%s) wrong!" % self.klass.__name__)
         setattr(inst, "_" + self.name, value)
 
     def setter(self, fn):
+        """ set the setter callback function. It is invoked when the field is set (i.e. `{field}={value}`).
+
+        :param fn: the callback function to set
+        :return: should not return
+        """
         self.cb_set = fn

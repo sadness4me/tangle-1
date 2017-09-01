@@ -1,5 +1,8 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+import pytest
+
+from tangle.m_annotation import Annotated
 from tangle.m_bean import Field
 from tangle.m_container import Bean
 from tangle.m_event import BeanPostProcessor
@@ -20,21 +23,26 @@ class BeanC(object):
     def test(self):
         pass
 
+    @Field(BeanB)
+    def test2(self):
+        pass
 
+
+@Annotated
 class TestConfig(object):
-    @Bean()
+    @Bean
     def beana(self):
         return BeanA()
 
-    @Bean()
+    @Bean
     def beanb(self):
         return BeanB(self.beana())
 
-    @Bean()
+    @Bean
     def beanc(self):
         return BeanC()
 
-    @Bean()
+    @Bean
     def container(self):
         return self
 
@@ -52,3 +60,6 @@ context.build()
 def test_config_factory():
     assert test_config.beanc().test == test_config.beana()
     assert test_config.beana() == test_config.beanb().bean_a
+    with pytest.raises(AttributeError) as ex:
+        print(test_config.beanc().test2)
+    assert "not set yet" in ex.value.args[0]

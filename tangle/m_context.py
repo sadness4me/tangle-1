@@ -35,8 +35,8 @@ class WireUtils(object):
         return self.wire(lambda bean_definition: issubclass(bean_definition.klass, klass))
 
     def autowire(self, bean):
-        fields = inspect.getmembers(type(bean), lambda fn: isinstance(fn, m_bean.Field))
-        for name, field in fields:
+        fields = m_bean.get_fields(bean)
+        for field in fields:
             if field.autowire:
                 wired_bean = self.wire_class(field.klass)
                 if wired_bean:
@@ -133,7 +133,7 @@ class ApplicationContext(object):
         beans = self.get_all_singleton_beans().values()
         aspects = list(filter(lambda aspect: isinstance(aspect, m_aspect.Aspect), beans))
         for bean in self.get_contained_beans():
-            m_aspect.process_aspect(bean, *aspects)
+            m_aspect.process_aspects(bean, *aspects)
 
     def set_parent(self, parent):
         self.parent = parent

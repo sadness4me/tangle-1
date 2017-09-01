@@ -1,118 +1,67 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import inspect
+import pytest
 
-from tangle.m_bean import Field
+from tangle import Field
+from tangle.m_bean import get_fields
+from tests.common_utils import EventRegister
 
 
-class TestClass(object):
+_register = EventRegister()
 
-    def __init__(self):
-        self.prop = 1
+
+class Alpha(object):
+    pass
 
 
 class TestBean(object):
 
-    def __init__(self):
-        self.param = 9
+    @Field
+    def field1(self):
+        _register.register(1)
 
-    def __call__(self, fn):
-        self.fn = fn
+    @Field(Alpha, True)
+    def field2(self):
+        _register.register(2)
 
-        def constructor(caller):
-            self.before_instantiate()
-            try:
-                bean = self.fn(caller)
-                return self.after_instantiate_return(bean)
-            except Exception as ex:
-                self.after_instantiate_exception(ex)
-            finally:
-                self.after_instantiate_finally()
+    @Field(autowire=True)
+    def field3(self):
+        _register.register(3)
 
-        self.constructor = constructor
-        setattr(constructor, "_bean_def", self)
-        return constructor
-
-    """
-    def __get__(self, instance, owner):
-        def method():
-            return self.constructor(instance)
-        return method
-    """
-
-    def before_instantiate(self):
-        print("before and param is: " + str(self.param))
-
-    def after_instantiate_exception(self, error):
-        print("after exception")
-
-    def after_instantiate_return(self, bean):
-        print("after return")
-        return bean
-
-    def after_instantiate_finally(self):
-        print("finally!")
+    @field1.setter
+    def set_field1(self, value):
+        _register.register(4, value)
 
 
-class TestMD(object):
-
-    def __get__(self, instance, owner):
-        if instance is None:
-            return self
-        def method_md():
-            print("method_md!")
-        return method_md
-
-
-class TestPD(object):
-
-    def __get__(self, instance, owner):
-        return 20
-
-    def __set__(self, instance, value):
-        pass
+def test_field():
+    field1, field2, field3 = get_fields(TestBean)
+    assert field1.name == "field1"
+    assert not field1.klass
+    assert not field1.autowire
+    assert field2.klass == Alpha
+    assert field2.name == "field2"
+    assert field2.autowire
+    assert field3.autowire
+    assert not field3.klass
+    _register.clear()
 
 
-class TestContainer(object):
-
-    class_prop = 20
-
-    @TestBean()
-    def create_object(self):
-        print("class_prop: " + str(self.class_prop))
-        return TestClass()
-
-    test_md = TestMD()
-    test_pd = TestPD()
-
-    @Field(TestClass)
-    def field_test(self):
-        pass
-
-    @property
-    def property_test(self):
-        return 10
-
-
-def test_bean1():
-
-    def check(prop):
-        print(prop)
-        # if "TestBean" in str(prop):
-        #     print(prop)
-        return isinstance(prop, TestBean)
-
-    container = TestContainer()
-    for name, constructor in inspect.getmembers(TestContainer):
-        print("prop name: "+name)
-        if name == "test_md":
-            print(constructor)
-        if name in ["test_pd", "field_test", "property_test"]:
-            print(constructor)
-        # print(constructor)
-        # bean_definition = getattr(constructor, '_bean_def')
-        # bean_definition.param = 10
-
-    container.test_md()
-    assert isinstance(container.create_object(), TestClass)
-    print("test_pd="+str(container.test_pd))
+def test_instance():
+    tb = TestBean()
+    _register.uncheck(4)
+    tb.field1 = 1
+    _register.check(4, 1)
+    _register.uncheck(1)
+    assert tb.field1 == 1
+    _register.check(1)
+    with pytest.raises(TypeError):
+        tb.field2 = True
+    alpha = Alpha()
+    tb.field2 = alpha
+    _register.uncheck(2)
+    assert tb.field2 == alpha
+    _register.check(2)
+    tb.field3 = "test"
+    _register.uncheck(3)
+    assert tb.field3 == "test"
+    _register.check(3)

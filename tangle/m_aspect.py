@@ -6,27 +6,22 @@ import re
 import six
 import types
 
+from tangle.m_annotation import Annotation
 
-def process_aspect(bean, *aspects):
-    bean_adviser = BeanAdviser(bean)
+
+def process_aspects(bean, *aspects):
+    advised_bean_wrapper = AdvisedBeanWrapper(bean)
     for aspect in aspects:
-        aspect.process(bean_adviser)
-    bean_adviser.extract()
-    return bean_adviser
+        aspect.process(advised_bean_wrapper)
+    advised_bean_wrapper.extract()
+    return advised_bean_wrapper
 
 
 class Aspect(object):
-    def get_advises(self):
-
-        def _initialize_advise(pair):
-            advise = pair[1]
-            advise.set_aspect(self)
-            return advise
-
-        return list(map(_initialize_advise, inspect.getmembers(type(self), lambda member: isinstance(member, Advise))))
-
-    def __init__(self):
-        self.advises = self.get_advises()
+    @property
+    def advises(self):
+        return list(
+            member for name, member in inspect.getmembers(type(self), lambda member: isinstance(member, Advise)))
 
     def process(self, bean_adviser):
         for join_point in bean_adviser.join_points:
@@ -34,7 +29,7 @@ class Aspect(object):
 
     def advise_all(self, join_point):
         for advise in self.advises:
-            advise.advise(join_point)
+            advise.advise(join_point, self)
 
 
 class Pointcut(object):
@@ -56,6 +51,14 @@ class Pointcut(object):
                 return re.match(method_regex, join_point.name) is not None
 
         return SubPointcut()
+
+    @staticmethod
+    def all():
+        class SubPointcutAll(Pointcut):
+            def match(self, join_point):
+                return True
+
+        return SubPointcutAll()
 
     def match(self, join_point):
         inst = join_point.bean
@@ -117,23 +120,27 @@ class JoinPoint(object):
         def advised_method(inst, *args, **kwargs):
             try:
                 for before_advise in self.before_advises:
-                    before_advise(inst, *args, **kwargs)
+                    before_advise(inst, self.callable_in_advise, *args, **kwargs)
                 result = self.callable_in_advise(*args, **kwargs)
                 for return_advise in reversed(self.return_advises):
-                    return_advise(inst, result, *args, **kwargs)
+                    return_advise(result, inst, self.callable_in_advise, *args, **kwargs)
                 return result
             except Exception as error:
                 for error_advise in reversed(self.error_advises):
-                    error_advise(inst, error, *args, **kwargs)
+                    error_advise(error, inst, self.callable_in_advise, *args, **kwargs)
                 six.raise_from(error, None)
             finally:
                 for after_advise in reversed(self.after_advises):
-                    after_advise(inst, *args, **kwargs)
+                    after_advise(inst, self.callable_in_advise, *args, **kwargs)
 
         return advised_method
 
 
-class BeanAdviser(object):
+class AdvisedBeanWrapper(object):
+    """Wrap the bean with corresponding join points. Processed by `Aspect` instances.
+    each callable member in the bean except the ones prefixed with "__" is wrapped to a joint point. The ones match some pointcuts are marked as "advised" and corresponding advises will be applied to the bean.
+    """
+
     def __init__(self, bean):
         self.bean = bean
         self.join_points = []
@@ -147,63 +154,112 @@ class BeanAdviser(object):
                 setattr(self.bean, join_point.name, types.MethodType(join_point.get_advised_method(), self.bean))
 
 
-class Advise(object):
+class Advise(Annotation):
     type_before = 0
     type_after = 1
     type_after_return = 2
     type_after_error = 3
 
-    def __init__(self, pointcut, advise_type):
-        self.pointcut = pointcut
+    def __init__(self, pointcut, advise_type, args_solver=False):
+        self.pointcut = None
         self.advise_method = None
         self.advise_type = advise_type
-        self.aspect = None
+        if not args_solver:
+            self.args_solver = ArgsSolver.ignore
+        elif type(args_solver) == bool:
+            self.args_solver = ArgsSolver.keep
+        else:
+            if not isinstance(args_solver, ArgsSolver):
+                raise Exception("parameter `args_solver` should be an instance of class `ArgsSolver`!")
+            self.args_solver = args_solver
+        super(Advise, self).__init__(pointcut)
 
-    def __call__(self, fn):
-        self.advise_method = fn
-        return self
+    def after_set_target(self, target):
+        pass
 
-    def set_aspect(self, aspect):
-        self.aspect = aspect
-        fn = self.advise_method
+    def init_instance_annotate(self, pointcut):
+        self.pointcut = pointcut
 
-        def aspect_wrapped_advise_method(inst, *args, **kwargs):
-            return fn(aspect, inst, *args, **kwargs)
+    def init_class_annotate(self):
+        self.pointcut = Pointcut.all()
 
-        self.advise_method = aspect_wrapped_advise_method
+    def advise(self, join_point, aspect):
+        if not self.pointcut.match(join_point):
+            return
+        join_point.advised = True
+        advise = {
+            Advise.type_before: "before_advises",
+            Advise.type_after: "after_advises",
+            Advise.type_after_return: "return_advises",
+            Advise.type_after_error: "error_advises"
+        }.get(self.advise_type)
 
-    def advise(self, join_point):
-        if self.pointcut.match(join_point):
-            join_point.advised = True
-            advise = {
-                Advise.type_before: "before_advises",
-                Advise.type_after: "after_advises",
-                Advise.type_after_return: "return_advises",
-                Advise.type_after_error: "error_advises"
-            }.get(self.advise_type)
-            getattr(join_point, advise).append(self.advise_method)
+        def aspect_wrapped_advise_method(*args, **kwargs):
+            inst, fn, input_args, excluded_args = args[0], args[1], list(args[2:]), []
+            if self.advise_type in [self.type_after_return, self.type_after_error]:
+                inst, fn, input_args, excluded_args = args[1], args[2], list(args[3:]), list(args[0:1])
+            solved_args, solved_kwargs = self.args_solver.target(inst, fn, input_args, kwargs)
+            solved_args = excluded_args + solved_args
+            if isinstance(self.target, classmethod) or isinstance(self.target, staticmethod):
+                return self.target.__get__(aspect, type(aspect))(*solved_args, **solved_kwargs)
+            return self.target(aspect, *solved_args, **solved_kwargs)
 
-    def __get__(self, instance, owner):
-        if instance:
-            return self.advise_method
-        return self
+        getattr(join_point, advise).append(aspect_wrapped_advise_method)
+
+        # def get_instance_member(self, target, instance):
+        #     return self.advise_method
 
 
 class Before(Advise):
-    def __init__(self, pointcut):
-        super(Before, self).__init__(pointcut, Advise.type_before)
+    def __init__(self, pointcut=Pointcut.all(), args_solver=False):
+        super(Before, self).__init__(pointcut, Advise.type_before, args_solver)
 
 
 class After(Advise):
-    def __init__(self, pointcut):
-        super(After, self).__init__(pointcut, Advise.type_after)
+    def __init__(self, pointcut=Pointcut.all(), args_solver=False):
+        super(After, self).__init__(pointcut, Advise.type_after, args_solver)
 
 
 class AfterError(Advise):
-    def __init__(self, pointcut):
-        super(AfterError, self).__init__(pointcut, Advise.type_after_error)
+    def __init__(self, pointcut=Pointcut.all(), args_solver=False):
+        super(AfterError, self).__init__(pointcut, Advise.type_after_error, args_solver)
 
 
 class AfterReturn(Advise):
-    def __init__(self, pointcut):
-        super(AfterReturn, self).__init__(pointcut, Advise.type_after_return)
+    def __init__(self, pointcut=Pointcut.all(), args_solver=False):
+        super(AfterReturn, self).__init__(pointcut, Advise.type_after_return, args_solver)
+
+
+class ArgsSolver(Annotation):
+    ignore = None
+    keep = None
+    method = None
+
+    def __init__(self, fn):
+        super(ArgsSolver, self).__init__(fn)
+
+    def init_instance_annotate(self, *args):
+        pass
+
+    def after_set_target(self, target):
+        pass
+
+    def init_class_annotate(self):
+        pass
+
+
+def _no_argument(inst, fn, args, kwargs):
+    return [], {}
+
+
+def _keep_argument(inst, fn, args, kwargs):
+    return [inst, fn] + args, kwargs
+
+
+def _keep_method(inst, fn, args, kwargs):
+    return [inst, fn], {}
+
+
+ArgsSolver.ignore = ArgsSolver(_no_argument)
+ArgsSolver.keep = ArgsSolver(_keep_argument)
+ArgsSolver.method = ArgsSolver(_keep_method)

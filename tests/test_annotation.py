@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 import pytest
-from tangle.m_annotation import Annotation
+from tangle.m_annotation import Annotation, get_annotations
 
 
 class TestAnnotation(Annotation):
@@ -19,11 +19,13 @@ class Annotated(object):
         print("original!")
 
 
-def test_basic():
+def test_instantiate():
     with pytest.raises(Exception):
         Annotation(None)
     TestAnnotation()
 
 
-def test_anno():
-    pass
+def test_annotate():
+    a = Annotated()
+    [annotation] = get_annotations(a)
+    assert isinstance(annotation, TestAnnotation)
