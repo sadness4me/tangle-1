@@ -238,8 +238,8 @@ class ArgsSolver(Annotation):
     def __init__(self, fn):
         super(ArgsSolver, self).__init__(fn)
 
-    def init_instance_annotate(self, *args):
-        pass
+    def init_instance_annotate(self, fn):
+        raise Exception("Does not allow instance annotate mode!")
 
     def after_set_target(self, target):
         pass

@@ -5,6 +5,15 @@ from tangle.m_annotation import Annotation, get_annotations
 
 
 class TestAnnotation(Annotation):
+    def init_class_annotate(self, *args):
+        pass
+
+    def init_instance_annotate(self, obj, *args):
+        pass
+
+    def after_set_target(self, target):
+        pass
+
     def __init__(self, fn=None):
         super(TestAnnotation, self).__init__(fn)
 

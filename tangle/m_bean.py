@@ -11,17 +11,16 @@ def get_fields(obj):
 class Field(Annotation):
     def __init__(self, klass=None, autowire=False):
         self.klass = None
-        self.autowire = False
+        self.autowire = autowire
         self.cb_set = None
         self.name = None
         super(Field, self).__init__(klass, autowire)
 
-    def init_class_annotate(self):
-        pass
+    def init_class_annotate(self, autowire):
+        self.klass = None
 
     def init_instance_annotate(self, klass, autowire):
         self.klass = klass
-        self.autowire = autowire
 
     def get_instance_member(self, target, instance):
         return self.get(instance)

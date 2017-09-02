@@ -67,7 +67,7 @@ class Annotation(object):
             return
         if inspect.isfunction(obj) or isinstance(obj, classmethod) or isinstance(obj, staticmethod):
             self.init_function(obj)
-            self.init_class_annotate()
+            self.init_class_annotate(*args)
             return
         self.init_instance_annotate(obj, *args)
 
@@ -82,11 +82,11 @@ class Annotation(object):
         self.after_set_target(fn)
 
     @abc.abstractmethod
-    def init_class_annotate(self):
+    def init_class_annotate(self, *args):
         pass
 
     @abc.abstractmethod
-    def init_instance_annotate(self, *args):
+    def init_instance_annotate(self, obj, *args):
         """The actual init method which should be implemented by subclasses of `Annotation`.
 
         It is invoked in `__init__` of the base class `Annotation`.

@@ -1,6 +1,5 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import inspect
 import six
 import six.moves
 from tangle import m_aspect, m_bean, m_container, m_event
@@ -10,14 +9,6 @@ class BeanIdError(ValueError):
     def __init__(self):
         super(BeanIdError, self).__init__(
             "bean id has not been found in application context, check if you input the wrong id!")
-
-
-class ApplicationContextAware(object):
-    def set_application_context(self, application_context):
-        self.application_context = application_context
-
-    def get_application_context(self):
-        return self.application_context
 
 
 class WireUtils(object):
@@ -107,9 +98,7 @@ class ApplicationContext(object):
         pass
 
     def instantiate_beans(self):
-        for bean_definition in self.bean_container.bean_definition_dict.values():
-            if not bean_definition.is_config:
-                self.bean_container.create_bean(bean_definition)
+        self.bean_container.instantiate_beans()
 
     def post_instantiate_beans(self):
         pass
@@ -170,8 +159,7 @@ class ApplicationContext(object):
         return self.bean_container.get_all_beans()
 
     def exec_bean_post_instantiate(self, bean):
-        if isinstance(bean, ApplicationContextAware):
-            bean.set_application_context(self)
+        pass
 
     def exec_post_instantiate(self):
         pass

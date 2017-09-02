@@ -52,6 +52,7 @@ class TestBeanPostProcessor(BeanPostProcessor):
         print("test post:")
         print(bean)
 
+
 test_config = TestConfig()
 context = BaseApplicationContext(test_config)
 context.build()
