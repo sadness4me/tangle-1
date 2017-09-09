@@ -3,9 +3,8 @@
 import inspect
 import types
 
-from tangle import Bean
 from tangle.m_annotation import Annotated
-from tangle.m_container import BeanContainer
+from tangle.m_container import BeanContainer, Bean
 
 
 class AAA(object):

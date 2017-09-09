@@ -42,7 +42,6 @@ class ApplicationContext(object):
         """
         self.config_sources = config_sources
         self.set_parent(None)
-        self.initialized = False
         self.bean_container = self.create_bean_container()
         self.parent = None
         self.wire_utils = WireUtils(self)
@@ -77,12 +76,10 @@ class ApplicationContext(object):
                 pass
 
             def after_bean_instantiate(self, bean_definition, bean):
-                if bean_definition.scope == m_container.Bean.Singleton:
+                super(WrappedBeanContainer, self).after_bean_instantiate(bean_definition, bean)
+                if bean_definition.scope == m_container.Bean.Singleton or not self.beans_instantiated:
                     return
-                if context.initialized:
-                    context.wire_utils.autowire(bean)
-                else:
-                    self.prototype_beans_referenced.append(bean)
+                context.wire_utils.autowire(bean)
 
         return WrappedBeanContainer()
 
@@ -106,7 +103,6 @@ class ApplicationContext(object):
     def initialize_beans(self):
         for bean in self.get_contained_beans():
             self.wire_utils.autowire(bean)
-        self.initialized = True
 
     def post_initialize_beans(self):
         beans = self.get_all_singleton_beans().values()

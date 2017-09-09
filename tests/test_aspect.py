@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
+from tangle.m_annotation import Annotated
 from tests.common_utils import EventRegister
 from tests.group.group import TestGroup, TestBureau
 from tests.user.user import TestUser
@@ -7,26 +8,18 @@ from tangle.m_aspect import Pointcut, Aspect, Before, After, process_aspects, Ar
     JoinPoint
 
 
-def _solve(inst, fn, args, kwargs):
-    args_size = len(args) if args else 0
-    kwargs_size = len(kwargs) if kwargs else 0
-    return [args_size, kwargs_size], {}
-
-
 pc1 = Pointcut.execute("*", "get*")
 pc2 = Pointcut.execute("*group.*", "*")
 pc3 = Pointcut.execute("*", "cal*")
 pc4 = Pointcut.execute("*user*", "*")
 pc5 = Pointcut.execute("*", "get*")
-solver = ArgsSolver(_solve)
 
 
 _event_register = EventRegister()
 
 
+@Annotated
 class TestAspectBefore(Aspect):
-    class_counter = 0
-
     def __init__(self):
         super(TestAspectBefore, self).__init__()
 
@@ -48,6 +41,13 @@ class TestAspectBefore(Aspect):
         _event_register.register(4, inst, args, kwargs)
 
 
+def _solve(inst, fn, args, kwargs):
+    args_size = len(args) if args else 0
+    kwargs_size = len(kwargs) if kwargs else 0
+    return [args_size, kwargs_size], {}
+
+
+@Annotated
 class TestAspectAfter(Aspect):
     @After(pc4, ArgsSolver.method)
     def advise(self, inst, fn):
@@ -57,7 +57,7 @@ class TestAspectAfter(Aspect):
     def advise2(self):
         _event_register.register(6)
 
-    @After(pc5, solver)
+    @After(pc5, _solve)
     @staticmethod
     def advise3(count_args, count_kwargs):
         _event_register.register(7, count_args + count_kwargs)

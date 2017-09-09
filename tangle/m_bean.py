@@ -14,16 +14,19 @@ class Field(Annotation):
         self.autowire = autowire
         self.cb_set = None
         self.name = None
-        super(Field, self).__init__(klass, autowire)
+        super(Field, self).__init__(klass)
 
-    def init_class_annotate(self, autowire):
+    def init_class_annotate(self):
         self.klass = None
 
-    def init_instance_annotate(self, klass, autowire):
+    def init_instance_annotate(self, klass):
         self.klass = klass
 
-    def get_instance_member(self, target, instance):
+    def get_instance_member(self, instance):
         return self.get(instance)
+
+    def get_class_member(self, cls):
+        return self
 
     def __set__(self, obj, value):
         self.set(obj, value)

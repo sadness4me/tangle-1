@@ -1,9 +1,7 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 import collections
-import inspect
-import types
-from tangle.m_annotation import Annotation
+from tangle.m_annotation import Annotation, get_annotations
 
 
 class Bean(Annotation):
@@ -15,7 +13,7 @@ class Bean(Annotation):
         scope(`Bean.Prototype` or `Bean.Singletn`): bean scope.
         bean_id(str): bean id.
         klass(class): bean type.
-        config_class(class): the config class which contains this annotation. Available only when the config class is decorated with :class:`tangle.m_annotation.Annotated`.
+        owner_class(class): the config class which contains this annotation. Available only when the config class is decorated with :class:`tangle.m_annotation.Annotated`.
         creator(function): the original function which is the bean annotation target
         wrapped_creator(method): a :class:`types.MethodType` instance that is a method of the config instance. It accepts the bean container which loads the config instance as the only argument
 
@@ -32,21 +30,22 @@ class Bean(Annotation):
 
         """
         self.scope = None  # bean scope
+        self.featured_target = None
         self.bean_id = bean_id  # bean id
         self.klass = None  # bean type, which is set when the bean instance is created
-        self.config_class = None  # the config class of the annotation
         self.creator = None
         self.is_config = False  # only for internal use, indicates whether the bean itself is a config instance.
-        self.wrapped_creator = None
-        super(Bean, self).__init__(scope, bean_id)
+        super(Bean, self).__init__(scope)
 
-    def init_instance_annotate(self, scope, bean_id):
+    def init_instance_annotate(self, scope):
         self.scope = scope
 
-    def init_class_annotate(self, bean_id):
+    def init_class_annotate(self):
         self.scope = Bean.Singleton
 
     def after_set_target(self, fn):
+        if isinstance(fn, staticmethod) or isinstance(fn, classmethod):
+            raise Exception("cannot annotate staticmethod or classmethod!")
         if not self.bean_id:
             self.bean_id = fn.__name__
 
@@ -64,13 +63,10 @@ class Bean(Annotation):
             bean_container.after_bean_instantiate(self, bean)
             return bean
 
-        self.wrapped_creator = create
+        self.featured_target = create
 
-    def get_instance_member(self, target, instance):
-        return types.MethodType(self.wrapped_creator, instance)
-
-    def aware_owner_class(self, owner):
-        self.config_class = owner
+    def get_featured_target(self):
+        return self.featured_target
 
 
 class BeanContainer(object):
@@ -82,7 +78,8 @@ class BeanContainer(object):
         self.bean_definition_dict = collections.OrderedDict()
         self.singleton_bean_dict = collections.OrderedDict()
         self.config_source_dict = collections.OrderedDict()
-        self.prototype_beans_referenced = []
+        self._prototype_beans_referenced = []
+        self.beans_instantiated = False
 
     def register_config_source(self, config_source):
         config_source.bean_container = self      # register the bean container to the config instance
@@ -98,14 +95,15 @@ class BeanContainer(object):
         self.config_source_dict[config_class] = config_source_id
 
     def load_config_source(self, config_source):
-        bean_definitions = inspect.getmembers(type(config_source), lambda member: isinstance(member, Bean))
-        for name, bean_definition in bean_definitions:
+        bean_definitions = list(filter(lambda member: isinstance(member, Bean), get_annotations(config_source)))
+        for bean_definition in bean_definitions:
             self.register_bean_definition(bean_definition)
 
     def instantiate_beans(self):
         for bean_definition in self.bean_definition_dict.values():
-            if not bean_definition.is_config:
+            if not bean_definition.is_config and not bean_definition.scope == Bean.Prototype:
                 self.create_bean(bean_definition)
+        self.beans_instantiated = True
 
     def register_bean_definition(self, bean_definition):
         assert bean_definition.bean_id is not None, "bean_id of bean definition should not be null"
@@ -140,7 +138,7 @@ class BeanContainer(object):
         return self.singleton_bean_dict
 
     def get_all_beans(self):
-        return list(self.singleton_bean_dict.values()) + self.prototype_beans_referenced
+        return list(self.singleton_bean_dict.values()) + self._prototype_beans_referenced
 
     def get_bean_definition_dict(self):
         return self.bean_definition_dict
@@ -149,8 +147,8 @@ class BeanContainer(object):
         return self.bean_definition_dict.get(bean_id, None)
 
     def create_bean(self, bean_definition):
-        config_bean = self.singleton_bean_dict[self.config_source_dict[bean_definition.config_class]]
-        return bean_definition.wrapped_creator(config_bean)
+        config_bean = self.singleton_bean_dict[self.config_source_dict[bean_definition.owner_class]]
+        return bean_definition.get_featured_target()(config_bean)
 
     def post_register_config_source(self, config_bean_definition, config_bean):
         pass
@@ -165,4 +163,7 @@ class BeanContainer(object):
         pass
 
     def after_bean_instantiate(self, bean_definition, bean):
-        pass
+        if bean_definition.scope == Bean.Singleton:
+            return
+        if not self.beans_instantiated:
+            self._prototype_beans_referenced.append(bean)

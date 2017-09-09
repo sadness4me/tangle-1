@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 import pytest
 
-from tangle import Field
-from tangle.m_bean import get_fields
+from tangle.m_annotation import Annotated
+from tangle.m_bean import get_fields, Field
 from tests.common_utils import EventRegister
 
 
@@ -14,6 +14,7 @@ class Alpha(object):
     pass
 
 
+@Annotated
 class TestBean(object):
 
     @Field

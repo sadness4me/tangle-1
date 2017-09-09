@@ -6,7 +6,7 @@ import re
 import six
 import types
 
-from tangle.m_annotation import Annotation
+from tangle.m_annotation import Annotation, get_annotations
 
 
 def process_aspects(bean, *aspects):
@@ -18,17 +18,16 @@ def process_aspects(bean, *aspects):
 
 
 class Aspect(object):
-    @property
-    def advises(self):
-        return list(
-            member for name, member in inspect.getmembers(type(self), lambda member: isinstance(member, Advise)))
+    @classmethod
+    def advises(cls):
+        return list(filter(lambda member: isinstance(member, Advise), get_annotations(cls)))
 
     def process(self, bean_adviser):
         for join_point in bean_adviser.join_points:
             self.advise_all(join_point)
 
     def advise_all(self, join_point):
-        for advise in self.advises:
+        for advise in self.advises():
             advise.advise(join_point, self)
 
 
@@ -120,7 +119,9 @@ class JoinPoint(object):
         def advised_method(inst, *args, **kwargs):
             try:
                 for before_advise in self.before_advises:
-                    before_advise(inst, self.callable_in_advise, *args, **kwargs)
+                    before_result = before_advise(inst, self.callable_in_advise, *args, **kwargs)
+                    if before_result:
+                        return before_result
                 result = self.callable_in_advise(*args, **kwargs)
                 for return_advise in reversed(self.return_advises):
                     return_advise(result, inst, self.callable_in_advise, *args, **kwargs)
@@ -169,8 +170,6 @@ class Advise(Annotation):
         elif type(args_solver) == bool:
             self.args_solver = ArgsSolver.keep
         else:
-            if not isinstance(args_solver, ArgsSolver):
-                raise Exception("parameter `args_solver` should be an instance of class `ArgsSolver`!")
             self.args_solver = args_solver
         super(Advise, self).__init__(pointcut)
 
@@ -198,7 +197,7 @@ class Advise(Annotation):
             inst, fn, input_args, excluded_args = args[0], args[1], list(args[2:]), []
             if self.advise_type in [self.type_after_return, self.type_after_error]:
                 inst, fn, input_args, excluded_args = args[1], args[2], list(args[3:]), list(args[0:1])
-            solved_args, solved_kwargs = self.args_solver.target(inst, fn, input_args, kwargs)
+            solved_args, solved_kwargs = self.args_solver(inst, fn, input_args, kwargs)
             solved_args = excluded_args + solved_args
             if isinstance(self.target, classmethod) or isinstance(self.target, staticmethod):
                 return self.target.__get__(aspect, type(aspect))(*solved_args, **solved_kwargs)
@@ -231,35 +230,20 @@ class AfterReturn(Advise):
 
 
 class ArgsSolver(Annotation):
-    ignore = None
-    keep = None
-    method = None
+    @staticmethod
+    def ignore(inst, fn, args, kwargs):
+        return [], {}
+
+    @staticmethod
+    def keep(inst, fn, args, kwargs):
+        return [inst, fn] + args, kwargs
+
+    @staticmethod
+    def method(inst, fn, args, kwargs):
+        return [inst, fn], {}
 
     def __init__(self, fn):
         super(ArgsSolver, self).__init__(fn)
 
     def init_instance_annotate(self, fn):
         raise Exception("Does not allow instance annotate mode!")
-
-    def after_set_target(self, target):
-        pass
-
-    def init_class_annotate(self):
-        pass
-
-
-def _no_argument(inst, fn, args, kwargs):
-    return [], {}
-
-
-def _keep_argument(inst, fn, args, kwargs):
-    return [inst, fn] + args, kwargs
-
-
-def _keep_method(inst, fn, args, kwargs):
-    return [inst, fn], {}
-
-
-ArgsSolver.ignore = ArgsSolver(_no_argument)
-ArgsSolver.keep = ArgsSolver(_keep_argument)
-ArgsSolver.method = ArgsSolver(_keep_method)

@@ -1,16 +1,33 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-import abc, types, six
+import types
+import collections
 import inspect
+import itertools
 
 
 class Annotated(object):
     """This decorator is used to decorate a owner class of annotations, making the annotations contained in the owner class being aware of it."""
-    def __new__(cls, annotated_cls):
-        annotations = get_annotations(annotated_cls)
+
+    key_annotations = "_tangle_annotations"
+
+    def __new__(cls, klass):
+        annotations = [
+            entry for entry in klass.__dict__.values()
+            if isinstance(entry, Annotation) and not entry.owner_class
+        ]
         for annotation in annotations:
-            annotation.aware_owner_class(annotated_cls)
-        return annotated_cls
+            annotation.set_owner_class(klass)
+        ancestor_annotations = list(itertools.chain(*list(
+            getattr(base, Annotated.key_annotations) for base in klass.__bases__
+            if hasattr(base, Annotated.key_annotations)
+        )))
+        setattr(
+            klass,
+            Annotated.key_annotations,
+            ancestor_annotations + sorted(annotations, key=lambda x: x.create_order)
+        )
+        return klass
 
 
 class NotAnnotationClassError(TypeError):
@@ -35,18 +52,22 @@ class AnnotationCallUsageError(Exception):
         super(AnnotationCallUsageError, self).__init__("You should not explicitly invoke an annotation instance call!")
 
 
-def get_annotations(obj):
+def get_annotations(obj, annotation_cls=None):
     if inspect.isclass(obj):
-        return _get_annotations_from_class(obj)
-    return _get_annotations_from_class(type(obj))
+        return _get_annotations_from_class(obj, annotation_cls)
+    return _get_annotations_from_class(type(obj), annotation_cls)
 
 
-def _get_annotations_from_class(cls):
-    return list(member for (name, member) in inspect.getmembers(cls, lambda member: isinstance(member, Annotation)))
+def _get_annotations_from_class(cls, annotation_cls):
+    annotations = getattr(cls, Annotated.key_annotations, [])
+    if not annotation_cls:
+        return annotations
+    return list(filter(lambda member: isinstance(member, annotation_cls), annotations))
 
 
-@six.add_metaclass(abc.ABCMeta)  # this class should not be instantiated, should only instantiate subclasses.
 class Annotation(object):
+    _create_order = 0
+
     """
     There are two annotating models: class annotating and instance annotating.
     class annotating means that the annotator (a.k.a. decorator) is an annotation class (i.e. a subclass of `Annotation`).
@@ -55,92 +76,107 @@ class Annotation(object):
 
     """
 
-    def __init__(self, obj, *args):
+    def __init__(self, obj):
+        assert not type(self) == Annotation
         self.target = None
-        self.annotations = []
-        self.annotations_look_up = {}
+        self.create_order = Annotation._create_order
+        Annotation._create_order = Annotation._create_order + 1
+        self.annotations = collections.OrderedDict()
+        self.owner_class = None
         self.register_annotation(self)
-        self._owner_registered = False
         if isinstance(obj, Annotation):
-            self.init_annotation(obj)
             self.init_class_annotate()
+            self.init_annotation(obj)
             return
         if inspect.isfunction(obj) or isinstance(obj, classmethod) or isinstance(obj, staticmethod):
+            self.init_class_annotate()
             self.init_function(obj)
-            self.init_class_annotate(*args)
             return
-        self.init_instance_annotate(obj, *args)
+        self.init_instance_annotate(obj)
 
     def init_annotation(self, annotation):
         self.target = annotation.target
-        self.annotations_look_up = annotation.annotations_look_up
-        self.annotations = annotation.annotations
+        self.annotations.update(annotation.annotations)
         self.after_set_target(annotation.target)
 
     def init_function(self, fn):
         self.target = fn
         self.after_set_target(fn)
 
-    @abc.abstractmethod
-    def init_class_annotate(self, *args):
+    def init_class_annotate(self):
         pass
 
-    @abc.abstractmethod
-    def init_instance_annotate(self, obj, *args):
+    def init_instance_annotate(self, obj):
         """The actual init method which should be implemented by subclasses of `Annotation`.
 
         It is invoked in `__init__` of the base class `Annotation`.
         It should support calls with no arguments (i.e. `init_instance_annotate()`) to support class annotating.
 
-        :param args: it depends on the inputs (`*init_args, **kwargs`) of `__init__`:
-
-            1. If `len(init_args)>0 and isinstance(init_args[0], Annotation)`, that is, the target of the annotation is also an annotation, the inputs `args = init_args[1:]`
-            2. If `len(init_args)>0 and inspect.isfunction(init_args[0])`, that is, the target of the annotation is a class member of the owner class. the inputs `args = init_args[1:]`
-            3. Otherwise `args = init_args`
-
         :return: should not return
         """
         pass
 
-    @abc.abstractmethod
     def after_set_target(self, target):
         """
         :return: should not return
         """
-        pass
 
     def register_annotation(self, annotation):
         if not isinstance(annotation, Annotation):
             raise NotAnnotationError()
-        if type(annotation) in self.annotations_look_up:
+        if type(annotation) in self.annotations:
             raise AnnotationAlreadyRegisteredError()
-        self.annotations_look_up[type(annotation)] = len(self.annotations)
-        self.annotations.append(annotation)
+        self.annotations[type(annotation)] = annotation
 
     def aware_owner_class(self, owner_class):
         """A lifecycle hook to trigger when the owner class (i.e. the class in which this annotation is contained) is created. Subclasses of :class:`Annotation` which want to be aware of the owner class should implement this method, and cooperate with :class:`Annotated`."""
         pass
 
+    def set_owner_class(self, owner_class):
+        self.owner_class = owner_class
+        self.aware_owner_class(owner_class)
+
     def get_annotation(self, klass):
-        if klass not in self.annotations_look_up:
+        if klass not in self.annotations:
             return None
-        return self.annotations[self.annotations_look_up[klass]]
+        return self.annotations[klass]
+
+    def get_annotations(self):
+        return self.annotations.values()
 
     def __call__(self, target):
         if isinstance(target, Annotation):
             self.init_annotation(target)
-        elif isinstance(target, types.FunctionType) or isinstance(target, classmethod) or isinstance(target, staticmethod):
+        elif isinstance(target, types.FunctionType) or isinstance(target, classmethod) or isinstance(target,
+                                                                                                     staticmethod):
             self.init_function(target)
         else:
             raise AnnotationCallUsageError()
         return self
 
-    def get_instance_member(self, target, instance):
+    def get_featured_target(self):
+        return self.target
+
+    def get_instance_member(self, instance):
+        target = self.get_featured_target()
         if isinstance(target, staticmethod) or isinstance(target, classmethod):
             return target.__get__(instance, type(instance))
         return types.MethodType(target, instance)
 
+    def get_class_member(self, cls):
+        target = self.get_featured_target()
+        if isinstance(target, staticmethod) or isinstance(target, classmethod):
+            return target.__get__(None, cls)
+        return target
+
     def __get__(self, instance, owner):
         if not instance:
-            return self
-        return self.get_instance_member(self.target, instance)
+            return self.get_class_member(owner)
+        return self.get_instance_member(instance)
+
+    def is_annotation(self, cls):
+        return True in (isinstance(x, cls) for x in self.annotations)
+
+    @classmethod
+    def get_annotations_from_owner(cls, owner):
+        return filter(lambda x: x.is_annotation(cls), get_annotations(owner))

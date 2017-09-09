@@ -18,6 +18,7 @@ class BeanB(object):
         self.bean_a = bean_a
 
 
+@Annotated
 class BeanC(object):
     @Field(BeanA, True)
     def test(self):
