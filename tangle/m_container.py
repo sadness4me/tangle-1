@@ -29,19 +29,13 @@ class Bean(Annotation):
         :param bean_id: set the id of the bean. The bean id should be unique in a context.
 
         """
-        self.scope = None  # bean scope
+        self.scope = scope  # bean scope
         self.featured_target = None
         self.bean_id = bean_id  # bean id
         self.klass = None  # bean type, which is set when the bean instance is created
         self.creator = None
         self.is_config = False  # only for internal use, indicates whether the bean itself is a config instance.
-        super(Bean, self).__init__(scope)
-
-    def init_instance_annotate(self, scope):
-        self.scope = scope
-
-    def init_class_annotate(self):
-        self.scope = Bean.Singleton
+        super(Bean, self).__init__()
 
     def after_set_target(self, fn):
         if isinstance(fn, staticmethod) or isinstance(fn, classmethod):

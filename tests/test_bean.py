@@ -17,7 +17,7 @@ class Alpha(object):
 @Annotated
 class TestBean(object):
 
-    @Field
+    @Field()
     def field1(self):
         _register.register(1)
 

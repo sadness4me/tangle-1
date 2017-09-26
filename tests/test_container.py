@@ -18,7 +18,7 @@ class BBB(object):
 @Annotated
 class TestConfig(object):
 
-    @Bean
+    @Bean()
     def constructor_class_annotation(self):
         return AAA()
 
@@ -30,7 +30,7 @@ class TestConfig(object):
     def _func_as_bean():
         return 10
 
-    @Bean
+    @Bean()
     def constructor_4_func(self):
         return self._func_as_bean
 

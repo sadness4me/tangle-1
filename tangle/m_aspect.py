@@ -155,32 +155,38 @@ class AdvisedBeanWrapper(object):
                 setattr(self.bean, join_point.name, types.MethodType(join_point.get_advised_method(), self.bean))
 
 
+class ArgsSolver(Annotation):
+    @staticmethod
+    def ignore(inst, fn, args, kwargs):
+        return [], {}
+
+    @staticmethod
+    def keep(inst, fn, args, kwargs):
+        return [inst, fn] + args, kwargs
+
+    @staticmethod
+    def method(inst, fn, args, kwargs):
+        return [inst, fn], {}
+
+    def __init__(self):
+        super(ArgsSolver, self).__init__()
+
+    def init_instance_annotate(self, fn):
+        raise Exception("Does not allow instance annotate mode!")
+
+
 class Advise(Annotation):
     type_before = 0
     type_after = 1
     type_after_return = 2
     type_after_error = 3
 
-    def __init__(self, pointcut, advise_type, args_solver=False):
-        self.pointcut = None
+    def __init__(self, pointcut=Pointcut.all(), advise_type=None, args_solver=ArgsSolver.ignore):
+        self.pointcut = pointcut
         self.advise_method = None
         self.advise_type = advise_type
-        if not args_solver:
-            self.args_solver = ArgsSolver.ignore
-        elif type(args_solver) == bool:
-            self.args_solver = ArgsSolver.keep
-        else:
-            self.args_solver = args_solver
-        super(Advise, self).__init__(pointcut)
-
-    def after_set_target(self, target):
-        pass
-
-    def init_instance_annotate(self, pointcut):
-        self.pointcut = pointcut
-
-    def init_class_annotate(self):
-        self.pointcut = Pointcut.all()
+        self.args_solver = args_solver
+        super(Advise, self).__init__()
 
     def advise(self, join_point, aspect):
         if not self.pointcut.match(join_point):
@@ -205,45 +211,22 @@ class Advise(Annotation):
 
         getattr(join_point, advise).append(aspect_wrapped_advise_method)
 
-        # def get_instance_member(self, target, instance):
-        #     return self.advise_method
-
 
 class Before(Advise):
-    def __init__(self, pointcut=Pointcut.all(), args_solver=False):
+    def __init__(self, pointcut=Pointcut.all(), args_solver=ArgsSolver.ignore):
         super(Before, self).__init__(pointcut, Advise.type_before, args_solver)
 
 
 class After(Advise):
-    def __init__(self, pointcut=Pointcut.all(), args_solver=False):
+    def __init__(self, pointcut=Pointcut.all(), args_solver=ArgsSolver.ignore):
         super(After, self).__init__(pointcut, Advise.type_after, args_solver)
 
 
 class AfterError(Advise):
-    def __init__(self, pointcut=Pointcut.all(), args_solver=False):
+    def __init__(self, pointcut=Pointcut.all(), args_solver=ArgsSolver.ignore):
         super(AfterError, self).__init__(pointcut, Advise.type_after_error, args_solver)
 
 
 class AfterReturn(Advise):
-    def __init__(self, pointcut=Pointcut.all(), args_solver=False):
+    def __init__(self, pointcut=Pointcut.all(), args_solver=ArgsSolver.ignore):
         super(AfterReturn, self).__init__(pointcut, Advise.type_after_return, args_solver)
-
-
-class ArgsSolver(Annotation):
-    @staticmethod
-    def ignore(inst, fn, args, kwargs):
-        return [], {}
-
-    @staticmethod
-    def keep(inst, fn, args, kwargs):
-        return [inst, fn] + args, kwargs
-
-    @staticmethod
-    def method(inst, fn, args, kwargs):
-        return [inst, fn], {}
-
-    def __init__(self, fn):
-        super(ArgsSolver, self).__init__(fn)
-
-    def init_instance_annotate(self, fn):
-        raise Exception("Does not allow instance annotate mode!")

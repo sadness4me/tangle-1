@@ -76,7 +76,7 @@ class Annotation(object):
 
     """
 
-    def __init__(self, obj):
+    def __init__(self):
         assert not type(self) == Annotation
         self.target = None
         self.create_order = Annotation._create_order
@@ -84,37 +84,15 @@ class Annotation(object):
         self.annotations = collections.OrderedDict()
         self.owner_class = None
         self.register_annotation(self)
-        if isinstance(obj, Annotation):
-            self.init_class_annotate()
-            self.init_annotation(obj)
-            return
-        if inspect.isfunction(obj) or isinstance(obj, classmethod) or isinstance(obj, staticmethod):
-            self.init_class_annotate()
-            self.init_function(obj)
-            return
-        self.init_instance_annotate(obj)
 
     def init_annotation(self, annotation):
         self.target = annotation.target
         self.annotations.update(annotation.annotations)
         self.after_set_target(annotation.target)
 
-    def init_function(self, fn):
-        self.target = fn
-        self.after_set_target(fn)
-
-    def init_class_annotate(self):
-        pass
-
-    def init_instance_annotate(self, obj):
-        """The actual init method which should be implemented by subclasses of `Annotation`.
-
-        It is invoked in `__init__` of the base class `Annotation`.
-        It should support calls with no arguments (i.e. `init_instance_annotate()`) to support class annotating.
-
-        :return: should not return
-        """
-        pass
+    def init_function(self, target):
+        self.target = target
+        self.after_set_target(target)
 
     def after_set_target(self, target):
         """

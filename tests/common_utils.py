@@ -25,3 +25,15 @@ class EventRegister(object):
     def uncheck(self, index):
         mark = self.registry.get(index, None)
         assert mark is None or mark == [0]
+
+
+def test_deco(test_func):
+    def wrapped_test():
+        print()
+        print("*************")
+        print("begin test ** %s **", test_func.__name__)
+        test_func()
+        print("end test ** %s **", test_func.__name__)
+        print("*************")
+        print()
+    return wrapped_test

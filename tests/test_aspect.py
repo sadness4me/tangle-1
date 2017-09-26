@@ -31,12 +31,12 @@ class TestAspectBefore(Aspect):
     def advise2(self, inst, fn):
         _event_register.register(2, inst)
 
-    @Before
+    @Before()
     @staticmethod
     def advise3():
         _event_register.register(3)
 
-    @Before(args_solver=True)
+    @Before(args_solver=ArgsSolver.keep)
     def advise4(self, inst, fn, *args, **kwargs):
         _event_register.register(4, inst, args, kwargs)
 
@@ -53,7 +53,7 @@ class TestAspectAfter(Aspect):
     def advise(self, inst, fn):
         _event_register.register(5, inst)
 
-    @After
+    @After()
     def advise2(self):
         _event_register.register(6)
 
@@ -62,7 +62,7 @@ class TestAspectAfter(Aspect):
     def advise3(count_args, count_kwargs):
         _event_register.register(7, count_args + count_kwargs)
 
-    @AfterError(pc3, True)
+    @AfterError(pc3, ArgsSolver.keep)
     @classmethod
     def test_classmethod_advise(cls, error, inst, fn, *args, **kwargs):
         _event_register.register(8, error, inst, args, kwargs)
@@ -76,6 +76,7 @@ class TestAspectAfter(Aspect):
 def _exe_test_call(expect_error, inst, fn, *args, **kwargs):
     join_point = JoinPoint(fn.__name__, fn, inst)
     error = None
+    result = None
     if expect_error:
         try:
             result = fn(*args, **kwargs)

@@ -1,53 +1,33 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 import pytest
-import six
-
 from tangle.m_annotation import Annotation, get_annotations, Annotated
 
 
 class TestAnnotation(Annotation):
-    def init_class_annotate(self):
-        self.param = "yy"
-
-    def init_instance_annotate(self, obj):
-        self.param = obj
-
     def after_set_target(self, target):
         pass
 
-    def __init__(self, fn=None, name="test_anno", status=1):
-        self.param = None
+    def __init__(self, fn="yy", name="test_anno", status=1):
+        self.param = fn
         self.name = name
         self.status = status
-        super(TestAnnotation, self).__init__(fn)
+        super(TestAnnotation, self).__init__()
 
 
 class XXX(Annotation):
     def after_set_target(self, target):
         pass
 
-    def init_class_annotate(self):
-        pass
-
-    def init_instance_annotate(self, obj):
-        raise Exception()
-
 
 class YYY(Annotation):
     def after_set_target(self, target):
         pass
 
-    def init_class_annotate(self):
-        pass
-
-    def init_instance_annotate(self, obj):
-        self.sex = obj
-
-    def __init__(self, fn=None, age=1):
-        self.sex = None
+    def __init__(self, sex="female", age=1):
+        self.sex = sex
         self.age = age
-        super(YYY, self).__init__(fn)
+        super(YYY, self).__init__()
 
 
 @Annotated
@@ -55,26 +35,26 @@ class AnnotatedTest(object):
 
     @YYY("male", 2)
     @TestAnnotation("xx", "anno", 2)
-    @XXX
+    @XXX()
     def test_annotation(self):
         print("original!")
 
-    @XXX
-    @TestAnnotation
+    @XXX()
+    @TestAnnotation()
     def test_anno2(self):
         print("anno2")
 
 
 def test_instantiate():
     with pytest.raises(Exception):
-        Annotation(None)
+        Annotation()
     TestAnnotation()
 
 
 @Annotated
 class AnnotatedSub(AnnotatedTest):
 
-    @TestAnnotation
+    @TestAnnotation()
     def sss(self):
         pass
 
@@ -82,11 +62,11 @@ class AnnotatedSub(AnnotatedTest):
 @Annotated
 class AnnotatedSubB(object):
 
-    @XXX
+    @XXX()
     def jjj(self):
         pass
 
-    @YYY
+    @YYY()
     def aaa(self):
         pass
 
@@ -94,7 +74,7 @@ class AnnotatedSubB(object):
 @Annotated
 class AnnotatedSubC(AnnotatedSubB, AnnotatedSub):
 
-    @YYY
+    @YYY()
     def kkk(self):
         pass
 
@@ -131,4 +111,3 @@ def test_annotate():
     assert [sub_anno_a, sub_anno_b, sub_anno_c] == [r, s, t]
     assert isinstance(p, XXX) and p.target.__name__ == "jjj"
     assert isinstance(q, YYY) and q.target.__name__ == "aaa"
-
