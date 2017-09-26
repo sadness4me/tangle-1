@@ -55,7 +55,7 @@ class TestConfig(object):
 
 
 test_config = TestConfig()
-context = BaseApplicationContext(test_config)
+context = BaseApplicationContext([test_config])
 context.build()
 
 
@@ -75,7 +75,7 @@ class TestAspect(object):
 
 
 test_aspect_inst = TestAspect()
-aspect_context = BaseApplicationContext(test_aspect_inst, parent=context)
+aspect_context = BaseApplicationContext([test_aspect_inst], parent=context)
 aspect_context.build()
 
 

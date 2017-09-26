@@ -66,7 +66,7 @@ class BeanHook(object):
 
 
 class ApplicationContext(object):
-    def __init__(self, *config_sources, parent=None):
+    def __init__(self, config_sources=(), parent=None):
         """
         Only instantiate the context and provides some basic properties.
         :param config_sources: array of config classes
@@ -199,5 +199,5 @@ class RootApplicationContext(ApplicationContext):
 class AbstractApplicationContext(ApplicationContext):
     _root_application_context = RootApplicationContext()
 
-    def __init__(self, *config_sources, parent=_root_application_context):
-        super(AbstractApplicationContext, self).__init__(*config_sources, parent=parent)
+    def __init__(self, config_sources=(), parent=_root_application_context):
+        super(AbstractApplicationContext, self).__init__(config_sources, parent=parent)
